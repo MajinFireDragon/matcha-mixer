@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ผสมสีมัทฉะ">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F3F3F3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>แถบผสมสีมัทฉะ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: two modes. Researcher console on light neutral paper (two columns when wide).
+   Participant task on a fixed RGB 128 gray field with no hue anywhere, so nothing on
+   screen tints the color being judged. Single deliberate look: the field must be the
+   same on every device and theme, so there are no dark-mode overrides. */
+:root{
+  --paper:#F3F3F3;
+  --panel:#FFFFFF;
+  --ink:#161616;
+  --muted:#5C5C5C;
+  --line:#D2D2D2;
+  --field:#808080;          /* RGB 128,128,128 — experimental surround */
+  --field-ink:#121212;
+  --field-ink-dim:#2C2C2C;
+  --danger:#8C2A2A;
+  --ui:-apple-system,BlinkMacSystemFont,"Sukhumvit Set","Thonburi","Noto Sans Thai","Hiragino Sans","Noto Sans JP","Segoe UI",Tahoma,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  color-scheme:light;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--ui);
+  -webkit-text-size-adjust:100%;touch-action:manipulation}
+body.field{background:var(--field);color:var(--field-ink);overflow:hidden}
+[hidden]{display:none!important}
+:lang(ja){font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",var(--ui)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid #000;outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- researcher console ---------- */
+.console{max-width:1180px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 40px}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;
+  border-bottom:2px solid var(--ink);padding-bottom:10px}
+.head h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.01em}
+.head p{margin:0;color:var(--muted);font-size:13px}
+.notice{margin:14px 0 0;padding:10px 12px;border:1px solid var(--ink);background:var(--panel);font-size:14px}
+.notice.warn{border-color:var(--danger);color:var(--danger)}
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;margin-top:22px}
+@media (min-width:980px){.cols{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}}
+section h2{margin:0 0 12px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.block{display:flex;flex-direction:column;gap:18px}
+.field-row{display:flex;flex-direction:column;gap:6px}
+.field-row>label,.lab{font-size:14px;font-weight:600}
+.seg{display:flex;gap:0;border:1px solid var(--ink);width:max-content;max-width:100%}
+.seg button{border:0;background:var(--panel);padding:10px 18px;min-height:44px}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.idbox{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.idbox input{width:9ch;padding:10px 12px;border:1px solid var(--ink);background:var(--panel);
+  font-family:var(--mono);font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+.hint{font-size:13px;color:var(--muted)}
+.hint.bad{color:var(--danger);font-weight:600}
+.orders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.orders{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ord{display:flex;flex-direction:column;gap:4px;text-align:left;padding:10px 12px;min-height:44px;
+  border:1px solid var(--line);background:var(--panel)}
+.ord b{font-size:13px}
+.ord span{font-size:13px}
+.ord .use{font-size:12px;color:var(--muted)}
+.ord .bar{height:4px;background:var(--line)}
+.ord .bar i{display:block;height:100%;background:var(--ink)}
+.ord[aria-checked="true"]{border:2px solid var(--ink);padding:9px 11px;background:var(--ink);color:var(--paper)}
+.ord[aria-checked="true"] .use{color:#CFCFCF}
+.ord[aria-checked="true"] .bar{background:#555}
+.ord[aria-checked="true"] .bar i{background:var(--paper)}
+.rowbtns{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{min-height:44px;padding:10px 18px;border:1px solid var(--ink);background:var(--panel)}
+.btn.primary{background:var(--ink);color:var(--paper);font-weight:700;font-size:17px;padding:12px 28px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.small{min-height:36px;padding:6px 12px;font-size:13px}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.danger.armed{background:var(--danger);color:#fff}
+.stats{display:flex;gap:24px;flex-wrap:wrap}
+.stat b{display:block;font-size:30px;line-height:1.1;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border-top:1px solid var(--ink)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600}
+td.hex{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tag{font-size:12px;padding:1px 6px;border:1px solid var(--line)}
+.tag.todo{border-color:var(--danger);color:var(--danger)}
+.empty{padding:18px 0;color:var(--muted)}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600;min-height:32px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:10px}
+.grid3 label{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.grid3 input[type=number]{padding:8px;border:1px solid var(--ink);background:var(--panel);font-family:var(--mono);width:100%;box-sizing:border-box}
+.check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:14px}
+.check input{width:22px;height:22px}
+.words{margin-top:10px;font-size:13px;width:100%}
+.words td{white-space:normal}
+.clear{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.clear input{padding:8px;border:1px solid var(--danger);background:var(--panel);width:14ch}
+
+/* ---------- participant field ---------- */
+.stage{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(env(safe-area-inset-top,0px) + 56px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(20px,env(safe-area-inset-left,0px));
+  box-sizing:border-box;background:var(--field);color:var(--field-ink);overflow-y:auto}
+.exit{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:calc(env(safe-area-inset-left,0px) + 8px);
+  width:44px;height:44px;border:0;background:transparent;color:#4A4A4A;font-size:26px;line-height:1}
+.roundno{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);right:calc(env(safe-area-inset-right,0px) + 20px);
+  font-size:14px;color:var(--field-ink-dim)}
+.rest{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--field-ink-dim)}
+.rest b{font-size:40px;font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--field-ink-dim)}
+.task{width:min(100%,620px);display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,20px)}
+.word{margin:0;font-size:clamp(26px,4.6vw,40px);font-weight:800;text-align:center;line-height:1.25;text-wrap:balance}
+.inst{margin:0;font-size:clamp(15px,2.2vw,19px);text-align:center;color:var(--field-ink-dim);max-width:34em;white-space:pre-line;line-break:strict}
+/* neutral frame so a gray swatch never vanishes into the gray field */
+.swatch{width:min(100%,520px);height:clamp(150px,30vh,320px);border-radius:10px;box-shadow:0 0 0 2px #5E5E5E}
+.hexout{font-family:var(--mono);font-size:22px;letter-spacing:.08em;color:var(--field-ink)}
+.sl{width:100%;display:grid;grid-template-columns:auto 44px minmax(0,1fr) 44px;align-items:center;gap:8px}
+.sl label{font-size:16px;font-weight:600;min-width:6.5em}
+.step{width:44px;height:44px;border:1px solid #3A3A3A;background:transparent;color:var(--field-ink);font-size:24px;line-height:1;border-radius:22px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:40px;margin:0;border-radius:20px;
+  border:1px solid rgba(0,0,0,.35);background:#999}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:40px;height:40px;border-radius:50%;
+  background:#FFFFFF;border:3px solid #141414;box-shadow:0 1px 3px rgba(0,0,0,.45)}
+input[type=range]::-moz-range-thumb{width:34px;height:34px;border-radius:50%;background:#FFFFFF;border:3px solid #141414}
+input[type=range]::-moz-range-track{background:transparent}
+@media (max-width:560px){.sl{grid-template-columns:44px minmax(0,1fr) 44px}.sl label{grid-column:1/-1;min-width:0}}
+.ok{min-width:220px;min-height:56px;border:0;border-radius:28px;background:#161616;color:#F2F2F2;font-size:22px;font-weight:700;margin-top:4px}
+.ghost{min-height:52px;padding:10px 26px;border:2px solid #1E1E1E;border-radius:26px;background:transparent;color:var(--field-ink);font-size:18px;font-weight:600}
+.overlay{position:fixed;inset:0;z-index:20;background:var(--field);display:flex;align-items:center;justify-content:center;
+  padding:24px max(20px,env(safe-area-inset-right,0px)) 24px max(20px,env(safe-area-inset-left,0px))}
+.overlay .box{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;max-width:520px}
+.overlay .chip{width:200px;height:140px;border-radius:10px;box-shadow:0 0 0 2px #5E5E5E}
+.overlay p{margin:0;font-size:22px;font-weight:700}
+.overlay .sub{font-size:15px;font-weight:400;color:var(--field-ink-dim)}
+.overlay .btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.thanks{display:flex;flex-direction:column;align-items:center;gap:28px;text-align:center}
+.thanks h2{margin:0;font-size:clamp(26px,4.4vw,38px);font-weight:800}
+.staff{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:36px;padding-top:18px;border-top:1px solid #6A6A6A}
+.staff .note{font-size:13px;color:var(--field-ink-dim)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="console" id="console">
+  <header class="head">
+    <h1>แถบผสมสีมัทฉะ</h1>
+    <p id="appStatus">เวอร์ชัน 1.1</p>
+  </header>
+  <div class="notice warn" id="storeWarn" hidden>เบราว์เซอร์นี้เก็บข้อมูลไว้ในเครื่องไม่ได้ ข้อมูลจะหายเมื่อปิดหน้า ให้บันทึก Excel หลังผู้เข้าร่วมแต่ละคน</div>
+  <div class="notice warn" id="installNote" hidden></div>
+  <div class="notice" id="unsaved" hidden></div>
+
+  <div class="cols">
+    <section aria-labelledby="h-next">
+      <h2 id="h-next">ผู้เข้าร่วมคนถัดไป</h2>
+      <div class="block">
+        <div class="field-row">
+          <span class="lab">กลุ่ม</span>
+          <div class="seg" role="group" aria-label="กลุ่มผู้เข้าร่วม">
+            <button type="button" id="gTH" aria-pressed="true">ไทย · TH</button>
+            <button type="button" id="gJP" aria-pressed="false">ญี่ปุ่น · JP <span lang="ja">日本語</span></button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label for="pid">รหัสผู้เข้าร่วม</label>
+          <div class="idbox">
+            <input id="pid" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" inputmode="text">
+            <span class="hint" id="pidHint">รูปแบบ TH001–TH150 หรือ JP001–JP150</span>
+          </div>
+        </div>
+        <div class="field-row">
+          <span class="lab" id="ordLab">ลำดับรอบ</span>
+          <div class="orders" id="orders" role="radiogroup" aria-labelledby="ordLab"></div>
+          <div class="rowbtns">
+            <button type="button" class="btn small" id="pickOrder">สุ่มจากลำดับที่ใช้น้อยที่สุด</button>
+            <span class="hint">นับเฉพาะกลุ่มที่เลือก เป้าหมายลำดับละ 25 คน</span>
+          </div>
+        </div>
+        <div class="rowbtns">
+          <button type="button" class="btn primary" id="start" disabled>เริ่มทดสอบ</button>
+          <span class="hint" id="startHint"></span>
+        </div>
+        <p class="hint">กรอกข้อมูลก่อนผู้เข้าร่วมนั่งที่ แล้วส่ง iPad ให้หลังกด "เริ่มทดสอบ" จอจะเป็นสีเทาก่อนรอบแรก</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-data">
+      <h2 id="h-data">ข้อมูลที่บันทึกแล้ว</h2>
+      <div class="block">
+        <div class="stats">
+          <div class="stat"><b id="nPeople">0</b><span>ผู้เข้าร่วม</span></div>
+          <div class="stat"><b id="nTH">0</b><span>กลุ่มไทย</span></div>
+          <div class="stat"><b id="nJP">0</b><span>กลุ่มญี่ปุ่น</span></div>
+          <div class="stat"><b id="nRows">0</b><span>สีที่ยืนยันแล้ว</span></div>
+        </div>
+        <div class="rowbtns">
+          <button type="button" class="btn" id="exportAll">ดาวน์โหลด Excel ทั้งหมด</button>
+          <span class="hint" id="exportMsg" role="status"></span>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ลำดับ</th><th>ผง</th><th>ชงน้ำ</th><th>ใส่นม</th><th>สถานะ</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div class="empty" id="emptyRows">ยังไม่มีข้อมูล สีที่ผู้เข้าร่วมยืนยันจะขึ้นที่นี่ทันที</div>
+        </div>
+        <p class="hint">ตารางแสดงเฉพาะค่า HEX ไม่แสดงสี เพื่อไม่ให้ผู้เข้าร่วมคนถัดไปเห็นสีของคนก่อน</p>
+
+        <details>
+          <summary>ตั้งค่าการทดสอบ</summary>
+          <div class="grid3">
+            <label>พักจอเทา (วินาที)<input type="number" id="sGray" min="0" max="300" step="1"></label>
+            <label>H เริ่มต้น (0–359)<input type="number" id="sH" min="0" max="359" step="1"></label>
+            <label>S เริ่มต้น (0–100)<input type="number" id="sS" min="0" max="100" step="1"></label>
+            <label>L เริ่มต้น (0–100)<input type="number" id="sL" min="0" max="100" step="1"></label>
+          </div>
+          <label class="check"><input type="checkbox" id="sHex"> แสดงค่า HEX ให้ผู้เข้าร่วมเห็นระหว่างผสมสี</label>
+          <p class="hint">ค่าเหล่านี้ถูกบันทึกในทุกแถวของ Excel ใช้ค่าเดิมตลอดการเก็บข้อมูลจริง ตอนซ้อมใช้พักจอเทา 3 วินาทีได้</p>
+          <table class="words">
+            <thead><tr><th>รูปแบบ</th><th>คำสิ่งเร้า (ไทย)</th><th>คำสิ่งเร้า (ญี่ปุ่น · ร่าง รอเจ้าของภาษาตรวจ)</th></tr></thead>
+            <tbody id="wordRows"></tbody>
+          </table>
+        </details>
+
+        <details>
+          <summary>ลบข้อมูลทั้งหมด</summary>
+          <p class="hint">ดาวน์โหลด Excel ก่อนเสมอ พิมพ์คำว่า ลบทั้งหมด แล้วกดปุ่ม</p>
+          <div class="clear">
+            <input id="clearTxt" autocomplete="off" aria-label="พิมพ์ ลบทั้งหมด เพื่อยืนยัน">
+            <button type="button" class="btn danger" id="clearBtn" disabled>ลบข้อมูลทั้งหมด</button>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- participant screens -->
+<div class="stage" id="stage" hidden>
+  <button type="button" class="exit" id="exit" aria-label="ผู้วิจัย: หยุดการทดสอบ">×</button>
+  <div class="roundno" id="roundNo"></div>
+
+  <div class="rest" id="rest" hidden>
+    <span id="restTxt"></span>
+    <b id="restSec"></b>
+  </div>
+
+  <div class="task" id="task" hidden>
+    <h2 class="word" id="word"></h2>
+    <p class="inst" id="inst1"></p>
+    <p class="inst" id="inst2"></p>
+    <div class="swatch" id="swatch"></div>
+    <div class="hexout" id="hexOut" aria-live="polite"></div>
+    <div class="sl">
+      <label for="rH" id="lH"></label>
+      <button type="button" class="step" data-k="H" data-d="-1" aria-label="ลด">−</button>
+      <input type="range" id="rH" min="0" max="359" step="1">
+      <button type="button" class="step" data-k="H" data-d="1" aria-label="เพิ่ม">+</button>
+    </div>
+    <div class="sl">
+      <label for="rS" id="lS"></label>
+      <button type="button" class="step" data-k="S" data-d="-1" aria-label="ลด">−</button>
+      <input type="range" id="rS" min="0" max="100" step="1">
+      <button type="button" class="step" data-k="S" data-d="1" aria-label="เพิ่ม">+</button>
+    </div>
+    <div class="sl">
+      <label for="rL" id="lL"></label>
+      <button type="button" class="step" data-k="L" data-d="-1" aria-label="ลด">−</button>
+      <input type="range" id="rL" min="0" max="100" step="1">
+      <button type="button" class="step" data-k="L" data-d="1" aria-label="เพิ่ม">+</button>
+    </div>
+    <button type="button" class="ok" id="ok"></button>
+  </div>
+
+  <div class="thanks" id="thanks" hidden>
+    <h2 id="thanksTxt"></h2>
+    <div class="staff">
+      <span class="note" id="staffNote"></span>
+      <div class="overlay-btns rowbtns" style="justify-content:center">
+        <button type="button" class="ghost" id="saveOne"></button>
+        <button type="button" class="ghost" id="backHome">กลับหน้าผู้วิจัย</button>
+      </div>
+      <span class="note" id="saveOneMsg" role="status"></span>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmBox" hidden role="dialog" aria-modal="true" aria-labelledby="cQ">
+  <div class="box">
+    <div class="chip" id="cChip"></div>
+    <p id="cQ"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="cBack"></button>
+      <button type="button" class="ok" id="cYes"></button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="abortBox" hidden role="dialog" aria-modal="true" aria-labelledby="aQ" lang="th">
+  <div class="box">
+    <p id="aQ">หยุดการทดสอบผู้เข้าร่วมคนนี้?</p>
+    <p class="sub" id="aSub"></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="aNo">ทำต่อ</button>
+      <button type="button" class="ok" id="aYes">หยุดและกลับหน้าผู้วิจัย</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// CORE-START — pure functions (tested outside the page)
+const FORMS = {
+  powder: { th: "ผงมัทฉะ", ja: "抹茶パウダー", short: "ผง" },
+  water:  { th: "มัทฉะชงน้ำ (ไม่ใส่นม)", ja: "お湯や水で溶いた抹茶（ミルクなし）", short: "ชงน้ำ" },
+  milk:   { th: "มัทฉะใส่นม", ja: "抹茶ラテ", short: "ใส่นม" }
+};
+const ORDERS = {
+  1: ["powder", "water", "milk"], 2: ["powder", "milk", "water"],
+  3: ["water", "powder", "milk"], 4: ["water", "milk", "powder"],
+  5: ["milk", "powder", "water"], 6: ["milk", "water", "powder"]
+};
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return [f(0), f(8), f(4)].map(v => Math.round(Math.min(1, Math.max(0, v)) * 255));
+}
+function rgbToHex(rgb) {
+  return "#" + rgb.map(v => v.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+// sRGB (IEC 61966-2-1) -> XYZ (D65) -> CIE L*a*b* (D65 white)
+function rgbToLab(rgb) {
+  const lin = rgb.map(v => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  const [R, G, B] = lin;
+  const X = 0.4124564 * R + 0.3575761 * G + 0.1804375 * B;
+  const Y = 0.2126729 * R + 0.7151522 * G + 0.0721750 * B;
+  const Z = 0.0193339 * R + 0.1191920 * G + 0.9503041 * B;
+  const Xn = 0.95047, Yn = 1.0, Zn = 1.08883;
+  const e = 216 / 24389, k = 24389 / 27;
+  const f = t => t > e ? Math.cbrt(t) : (k * t + 16) / 116;
+  const fx = f(X / Xn), fy = f(Y / Yn), fz = f(Z / Zn);
+  const r2 = v => Math.round(v * 100) / 100;
+  return [r2(116 * fy - 16), r2(500 * (fx - fy)), r2(200 * (fy - fz))];
+}
+
+// ---- minimal XLSX writer (stored zip, inline strings) ----
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files) {
+  const enc = new TextEncoder(); const chunks = []; const central = []; let offset = 0;
+  const d = new Date();
+  const dosTime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dosDate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name); const data = typeof f.data === "string" ? enc.encode(f.data) : f.data;
+    const crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+    ch.setUint16(30, 0, true); ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((s, c) => s + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  const all = [...chunks, ...central, new Uint8Array(end.buffer)];
+  const out = new Uint8Array(all.reduce((s, c) => s + c.length, 0)); let p = 0;
+  for (const c of all) { out.set(c, p); p += c.length; }
+  return out;
+}
+function xmlEsc(s) {
+  return String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function colName(i) { let s = ""; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+// sheets: [{name, rows: [[cell,...],...], widths:[...]}]; cell = string | number | null | {fill:"RRGGBB"}
+function makeXlsx(sheets) {
+  const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+  const fills = []; const fillIndex = {};
+  const styleFor = hex => { hex = hex.toUpperCase(); if (!(hex in fillIndex)) { fillIndex[hex] = fills.length; fills.push(hex); } return 2 + fillIndex[hex]; };
+  const sheetXml = sheets.map(sh => {
+    let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet ' + NS + '>';
+    x += '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>';
+    if (sh.widths) x += "<cols>" + sh.widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("") + "</cols>";
+    x += "<sheetData>";
+    sh.rows.forEach((row, r) => {
+      x += `<row r="${r + 1}">`;
+      row.forEach((v, c) => {
+        const ref = colName(c) + (r + 1);
+        if (v === null || v === undefined || v === "") return;
+        if (typeof v === "object" && v.fill) { x += `<c r="${ref}" s="${styleFor(v.fill)}"/>`; return; }
+        const s = r === 0 ? ' s="1"' : "";
+        if (typeof v === "number" && isFinite(v)) x += `<c r="${ref}"${s}><v>${v}</v></c>`;
+        else x += `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+      });
+      x += "</row>";
+    });
+    return x + "</sheetData></worksheet>";
+  });
+  const styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet ' + NS + '>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+    `<fills count="${2 + fills.length}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>` +
+    fills.map(h => `<fill><patternFill patternType="solid"><fgColor rgb="FF${h}"/><bgColor indexed="64"/></patternFill></fill>`).join("") + "</fills>" +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    `<cellXfs count="${2 + fills.length}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
+    fills.map((h, i) => `<xf numFmtId="0" fontId="0" fillId="${2 + i}" borderId="0" xfId="0" applyFill="1"/>`).join("") + "</cellXfs>" +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("") +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook ' + NS + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+    sheets.map((s, i) => `<sheet name="${xmlEsc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("") + "</sheets></workbook>";
+  const wbRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("") +
+    `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  return zipStore([
+    { name: "[Content_Types].xml", data: ct }, { name: "_rels/.rels", data: rels },
+    { name: "xl/workbook.xml", data: wb }, { name: "xl/_rels/workbook.xml.rels", data: wbRels },
+    { name: "xl/styles.xml", data: styles },
+    ...sheetXml.map((x, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: x }))
+  ]);
+}
+
+const DATA_COLS = ["participant_id", "group", "order_no", "sequence", "round", "form", "stimulus", "H", "S", "L", "HEX", "swatch",
+  "R", "G", "B", "L_star", "a_star", "b_star", "time_sec", "start_HSL", "gray_sec", "saved_at"];
+function workbookFor(records, exportedAt) {
+  const rows = [DATA_COLS];
+  for (const r of records) rows.push([r.pid, r.group, r.order, ORDERS[r.order].join("-"), r.round, r.form, r.stimulus,
+    r.h, r.s, r.l, r.hex, { fill: r.hex.slice(1) }, r.rgb[0], r.rgb[1], r.rgb[2], r.lab[0], r.lab[1], r.lab[2],
+    r.timeSec, r.startHSL, r.graySec, r.savedAt]);
+  const people = new Set(records.map(r => r.pid)).size;
+  const notes = [
+    ["รายการ", "รายละเอียด"],
+    ["เครื่องมือ", "แถบผสมสีมัทฉะ v1.1 (เว็บแอป ทำงานแบบออฟไลน์)"],
+    ["ส่งออกเมื่อ", exportedAt],
+    ["จำนวนผู้เข้าร่วม", people],
+    ["จำนวนแถว (สี)", records.length],
+    ["การแปลงสี", "HSL → sRGB (ปัดเป็นจำนวนเต็ม 0–255) → CIE XYZ (D65, IEC 61966-2-1) → CIE L*a*b* (จุดขาว D65: Xn 95.047, Yn 100, Zn 108.883) ปัด 2 ตำแหน่ง"],
+    ["หมายเหตุการแปลงสี", "L*a*b* คำนวณโดยสมมติว่าหน้าจอแสดงผลตามมาตรฐาน sRGB ไม่ได้วัดจากหน้าจอจริง"],
+    ["participant_id", "รหัสผู้เข้าร่วม TH### / JP###"],
+    ["group", "TH = ไทย, JP = ญี่ปุ่น"],
+    ["order_no / sequence", "ลำดับรอบ 1–6 และลำดับรูปแบบที่ใช้จริง"],
+    ["round", "รอบที่ผู้เข้าร่วมทำ (1–3) ตามลำดับเวลา"],
+    ["form", "powder = ผงมัทฉะ, water = มัทฉะชงน้ำ (ไม่ใส่นม), milk = มัทฉะใส่นม"],
+    ["stimulus", "คำสิ่งเร้าที่แสดงบนจอ"],
+    ["H / S / L", "ค่าแถบเลื่อน H 0–359, S 0–100, L 0–100"],
+    ["HEX / R / G / B", "สีที่แสดงบนจอจริง (หลังปัดเป็นจำนวนเต็ม)"],
+    ["swatch", "ช่องระบายสีตาม HEX เพื่อดูด้วยตา"],
+    ["L_star / a_star / b_star", "ค่า CIE L*a*b*"],
+    ["time_sec", "วินาทีตั้งแต่รอบเริ่มจนกดยืนยัน"],
+    ["start_HSL / gray_sec", "ค่าเริ่มต้นของแถบเลื่อน และเวลาพักจอเทาที่ใช้ในรอบนั้น"],
+    ["saved_at", "วันเวลาที่ยืนยันสี (เวลาท้องถิ่นของเครื่อง พร้อมเขตเวลา)"]
+  ];
+  return makeXlsx([
+    { name: "data", rows, widths: [14, 7, 9, 18, 7, 9, 30, 6, 6, 6, 10, 9, 6, 6, 6, 9, 9, 9, 9, 12, 9, 26] },
+    { name: "notes", rows: notes, widths: [24, 110] }
+  ]);
+}
+// CORE-END
+
+/* ---------------- page logic ---------------- */
+const $ = id => document.getElementById(id);
+const KEY = "matcha-mixer-v1";
+const UI = {
+  th: { H: "เฉดสี", S: "ความสดของสี", L: "ความสว่าง", ok: "ตกลง", inst1: "ปรับแถบเลื่อนให้ได้สีตามที่คุณนึกถึง",
+        inst2: "ไม่ต้องคิดว่าสีไหนสวยหรือดีที่สุด\nเลือกสีที่ตรงกับภาพในความจำของคุณมากที่สุด",
+        q: "ใช้สีนี้ใช่ไหม", back: "แก้ไขต่อ", yes: "ยืนยัน", rest: "พักสายตาสักครู่", round: (i) => `รอบที่ ${i} / 3`,
+        thanks: "ขอบคุณที่เข้าร่วมการวิจัย" },
+  ja: { H: "色相", S: "彩度", L: "明度", ok: "決定", inst1: "スライダーを動かして、思い浮かべる色にしてください。",
+        inst2: "きれいな色や良い色を選ぶ必要はありません。\n記憶に最も近い色を選んでください。",
+        q: "この色でよろしいですか？", back: "調整に戻る", yes: "確定", rest: "少し目を休めてください", round: (i) => `${i} / 3`,
+        thanks: "ご協力ありがとうございました" }
+};
+
+let state = { settings: { graySec: 60, startH: 180, startS: 0, startL: 50, showHex: true }, records: [] };
+let storeOk = true;
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) { const s = JSON.parse(raw); if (s && Array.isArray(s.records)) state = { settings: { ...state.settings, ...(s.settings || {}) }, records: s.records }; }
+    localStorage.setItem(KEY + "-probe", "1"); localStorage.removeItem(KEY + "-probe");
+  } catch (e) { storeOk = false; }
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); storeOk = true; } catch (e) { storeOk = false; } $("storeWarn").hidden = storeOk; }
+
+let group = "TH", order = null, session = null, restTimer = null, wakeLock = null;
+
+/* ---- console ---- */
+function participants() {
+  const map = new Map();
+  for (const r of state.records) {
+    if (!map.has(r.pid)) map.set(r.pid, { pid: r.pid, group: r.group, order: r.order, recs: [], last: r.savedAt });
+    const p = map.get(r.pid); p.recs.push(r); p.last = r.savedAt;
+  }
+  return [...map.values()];
+}
+function nextId(g) {
+  let max = 0; for (const p of participants()) if (p.group === g) max = Math.max(max, parseInt(p.pid.slice(2), 10) || 0);
+  return g + String(max + 1).padStart(3, "0");
+}
+function orderCounts(g) {
+  const c = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+  for (const p of participants()) if (p.group === g) c[p.order]++;
+  return c;
+}
+function renderOrders() {
+  const c = orderCounts(group); const box = $("orders"); box.textContent = "";
+  for (let n = 1; n <= 6; n++) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "ord"; b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(order === n));
+    const t = document.createElement("b"); t.textContent = "ลำดับ " + n;
+    const s = document.createElement("span"); s.textContent = ORDERS[n].map(f => FORMS[f].short).join(" → ");
+    const u = document.createElement("span"); u.className = "use num"; u.textContent = `ใช้แล้ว ${c[n]} / 25`;
+    const bar = document.createElement("span"); bar.className = "bar"; const i = document.createElement("i"); i.style.width = Math.min(100, c[n] / 25 * 100) + "%"; bar.append(i);
+    b.append(t, s, u, bar);
+    b.addEventListener("click", () => { order = n; renderOrders(); validate(); });
+    box.append(b);
+  }
+}
+function setGroup(g) {
+  group = g; $("gTH").setAttribute("aria-pressed", String(g === "TH")); $("gJP").setAttribute("aria-pressed", String(g === "JP"));
+  $("pid").value = nextId(g); order = null; renderOrders(); validate();
+}
+function validate() {
+  const id = $("pid").value.trim().toUpperCase();
+  const okFmt = new RegExp("^" + group + "\\d{3}$").test(id);
+  const exists = participants().some(p => p.pid === id);
+  const hint = $("pidHint");
+  if (!okFmt) { hint.textContent = `ต้องขึ้นต้นด้วย ${group} ตามด้วยเลข 3 หลัก เช่น ${group}001`; hint.className = "hint bad"; }
+  else if (exists) { hint.textContent = "รหัสนี้มีข้อมูลแล้ว ใช้รหัสใหม่ หรือลบข้อมูลเดิมก่อน"; hint.className = "hint bad"; }
+  else { hint.textContent = "รูปแบบ TH001–TH150 หรือ JP001–JP150"; hint.className = "hint"; }
+  const ready = okFmt && !exists && order !== null;
+  $("start").disabled = !ready;
+  $("startHint").textContent = ready ? `${id} · ลำดับ ${order} · ${ORDERS[order].map(f => FORMS[f].short).join(" → ")} · ภาษา${group === "TH" ? "ไทย" : "ญี่ปุ่น"}` : (order === null ? "เลือกลำดับรอบก่อน" : "");
+}
+function renderData() {
+  const ps = participants();
+  $("nPeople").textContent = ps.length;
+  $("nTH").textContent = ps.filter(p => p.group === "TH").length;
+  $("nJP").textContent = ps.filter(p => p.group === "JP").length;
+  $("nRows").textContent = state.records.length;
+  const tb = $("rows"); tb.textContent = "";
+  $("emptyRows").hidden = ps.length > 0;
+  ps.sort((a, b) => (a.last < b.last ? 1 : -1));
+  for (const p of ps) {
+    const tr = document.createElement("tr");
+    const td = (txt, cls) => { const c = document.createElement("td"); c.textContent = txt; if (cls) c.className = cls; tr.append(c); return c; };
+    td(p.pid, "num"); td(String(p.order), "num");
+    for (const f of ["powder", "water", "milk"]) { const r = p.recs.find(x => x.form === f); td(r ? r.hex : "—", "hex"); }
+    const st = td(""); const tag = document.createElement("span");
+    const done = p.recs.length === 3; const inXl = p.recs.every(r => r.xl);
+    tag.className = "tag" + (inXl ? "" : " todo");
+    tag.textContent = (done ? "ครบ 3 สี" : `ไม่ครบ ${p.recs.length}/3`) + (inXl ? " · อยู่ใน Excel แล้ว" : " · ยังไม่ได้บันทึก Excel");
+    st.append(tag);
+    const del = td(""); const b = document.createElement("button"); b.type = "button"; b.className = "btn small danger"; b.textContent = "ลบ";
+    let armed = null;
+    b.addEventListener("click", () => {
+      if (!armed) { b.classList.add("armed"); b.textContent = `แตะอีกครั้งเพื่อลบ ${p.pid}`; armed = setTimeout(() => { armed = null; b.classList.remove("armed"); b.textContent = "ลบ"; }, 4000); return; }
+      clearTimeout(armed); state.records = state.records.filter(r => r.pid !== p.pid); persist(); refreshConsole();
+    });
+    del.append(b); tb.append(tr);
+  }
+  const pending = state.records.filter(r => !r.xl).length;
+  const un = $("unsaved");
+  un.hidden = pending === 0;
+  un.textContent = `มี ${pending} สีที่ยังไม่อยู่ในไฟล์ Excel ใด ดาวน์โหลด Excel ก่อนปิดหน้านี้ ข้อมูลในเบราว์เซอร์อาจถูกลบได้ถ้าไม่ได้เปิดหน้านี้นาน`;
+  $("exportAll").disabled = state.records.length === 0;
+}
+function renderSettings() {
+  const s = state.settings;
+  $("sGray").value = s.graySec; $("sH").value = s.startH; $("sS").value = s.startS; $("sL").value = s.startL; $("sHex").checked = s.showHex;
+  const wr = $("wordRows"); wr.textContent = "";
+  for (const f of ["powder", "water", "milk"]) {
+    const tr = document.createElement("tr");
+    for (const [t, lang] of [[FORMS[f].short, "th"], [FORMS[f].th, "th"], [FORMS[f].ja, "ja"]]) { const c = document.createElement("td"); c.textContent = t; c.lang = lang; tr.append(c); }
+    wr.append(tr);
+  }
+}
+function readSettings() {
+  const clamp = (v, lo, hi, d) => { v = parseInt(v, 10); return isNaN(v) ? d : Math.min(hi, Math.max(lo, v)); };
+  const s = state.settings;
+  s.graySec = clamp($("sGray").value, 0, 300, 60); s.startH = clamp($("sH").value, 0, 359, 180);
+  s.startS = clamp($("sS").value, 0, 100, 0); s.startL = clamp($("sL").value, 0, 100, 50); s.showHex = $("sHex").checked;
+  persist(); renderSettings();
+}
+function refreshConsole() { renderOrders(); renderData(); validate(); }
+
+/* ---- participant flow ---- */
+function show(which) {
+  for (const id of ["rest", "task", "thanks"]) $(id).hidden = id !== which;
+  $("exit").hidden = which === "thanks";
+  $("roundNo").hidden = which !== "task";
+}
+function enterStage() {
+  document.body.classList.add("field"); $("console").hidden = true; $("stage").hidden = false;
+  $("stage").lang = session.lang; $("confirmBox").lang = session.lang;
+  const t = UI[session.lang];
+  $("lH").textContent = t.H; $("lS").textContent = t.S; $("lL").textContent = t.L;
+  $("ok").textContent = t.ok; $("inst1").textContent = t.inst1; $("inst2").textContent = t.inst2;
+  $("cQ").textContent = t.q; $("cBack").textContent = t.back; $("cYes").textContent = t.yes;
+  $("restTxt").textContent = t.rest; $("thanksTxt").textContent = t.thanks;
+  requestWake();
+  const el = document.documentElement;
+  try { const fs = el.requestFullscreen || el.webkitRequestFullscreen; if (fs) { const p = fs.call(el); if (p && p.catch) p.catch(() => {}); } } catch (e) {}
+}
+function leaveStage() {
+  clearInterval(restTimer); restTimer = null; session = null;
+  $("confirmBox").hidden = true; $("abortBox").hidden = true;
+  $("stage").hidden = true; $("console").hidden = false; document.body.classList.remove("field");
+  releaseWake();
+  try { const ex = document.exitFullscreen || document.webkitExitFullscreen; if ((document.fullscreenElement || document.webkitFullscreenElement) && ex) { const p = ex.call(document); if (p && p.catch) p.catch(() => {}); } } catch (e) {}
+  $("pid").value = nextId(group); order = null; refreshConsole(); window.scrollTo(0, 0);
+}
+function rest(next) {
+  show("rest");
+  const sec = state.settings.graySec;
+  if (sec <= 0) { next(); return; }
+  const end = Date.now() + sec * 1000;
+  const tick = () => {
+    const left = Math.ceil((end - Date.now()) / 1000);
+    if (left <= 0) { clearInterval(restTimer); restTimer = null; next(); return; }
+    $("restSec").textContent = left;
+  };
+  clearInterval(restTimer); tick(); restTimer = setInterval(tick, 250);
+}
+function startRound() {
+  const s = state.settings; const form = session.seq[session.round];
+  $("rH").value = s.startH; $("rS").value = s.startS; $("rL").value = s.startL;
+  $("word").textContent = FORMS[form][session.lang];
+  $("roundNo").textContent = UI[session.lang].round(session.round + 1);
+  $("hexOut").hidden = !s.showHex;
+  paint(); show("task"); session.t0 = performance.now(); $("rH").focus({ preventScroll: true });
+}
+function current() {
+  const h = +$("rH").value, s = +$("rS").value, l = +$("rL").value;
+  const rgb = hslToRgb(h, s, l); return { h, s, l, rgb, hex: rgbToHex(rgb) };
+}
+function paint() {
+  const c = current();
+  $("swatch").style.background = c.hex; $("hexOut").textContent = c.hex;
+  const stops = []; for (let h = 0; h <= 360; h += 30) stops.push(`hsl(${h},100%,50%)`);
+  $("rH").style.background = `linear-gradient(to right,${stops.join(",")})`;
+  $("rS").style.background = `linear-gradient(to right,hsl(${c.h},0%,${c.l}%),hsl(${c.h},100%,${c.l}%))`;
+  $("rL").style.background = `linear-gradient(to right,#000,hsl(${c.h},${c.s}%,50%),#fff)`;
+}
+function localStamp(d) {
+  const p = n => String(n).padStart(2, "0"); const off = -d.getTimezoneOffset();
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${off >= 0 ? "+" : "-"}${p(Math.floor(Math.abs(off) / 60))}:${p(Math.abs(off) % 60)}`;
+}
+function confirmColor() {
+  const c = current(); const s = state.settings; const form = session.seq[session.round];
+  state.records.push({
+    pid: session.pid, group: session.group, order: session.order, round: session.round + 1, form,
+    stimulus: FORMS[form][session.lang], h: c.h, s: c.s, l: c.l, hex: c.hex, rgb: c.rgb, lab: rgbToLab(c.rgb),
+    timeSec: Math.round((performance.now() - session.t0) / 100) / 10,
+    startHSL: `${s.startH}/${s.startS}/${s.startL}`, graySec: s.graySec, savedAt: localStamp(new Date()), xl: false
+  });
+  persist();
+  $("confirmBox").hidden = true;
+  session.round++;
+  if (session.round < 3) rest(startRound);
+  else { show("thanks"); $("saveOne").textContent = `บันทึก Excel ของ ${session.pid}`; $("staffNote").textContent = "สำหรับผู้วิจัย"; $("saveOneMsg").textContent = ""; releaseWake(); }
+}
+
+/* ---- wake lock ---- */
+async function requestWake() { try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) { wakeLock = null; } }
+function releaseWake() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && session) requestWake(); });
+
+/* ---- saving files ---- */
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+function fileStamp(d) { const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
+// Called straight from a tap, with no await before navigator.share: iPad Safari only opens
+// the share sheet while the tap is still "fresh".
+function saveRecords(recs, filename, msgEl) {
+  if (!recs.length) return;
+  const bytes = workbookFor(recs, localStamp(new Date()));
+  const done = how => {
+    const ids = new Set(recs); for (const r of state.records) if (ids.has(r)) r.xl = true;
+    persist(); renderData();
+    msgEl.textContent = `ส่งไฟล์ ${filename} แล้ว (${recs.length} สี) ${how}`;
+  };
+  let file = null;
+  try { file = new File([bytes], filename, { type: XLSX_TYPE }); } catch (e) { file = null; }
+  let canShare = false;
+  try { canShare = !!(file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { canShare = false; }
+  if (canShare) {
+    msgEl.textContent = "เลือก \"บันทึกไปยังไฟล์\" ในเมนูที่ขึ้นมา";
+    navigator.share({ files: [file] })
+      .then(() => done("ตรวจในแอปไฟล์ตรงโฟลเดอร์ที่เลือก"))
+      .catch(e => { msgEl.textContent = e && e.name === "AbortError" ? "ยกเลิกแล้ว ข้อมูลยังอยู่ในตาราง กดบันทึกใหม่ได้" : "เปิดเมนูบันทึกไม่ได้ ลองกดอีกครั้ง"; });
+    return;
+  }
+  try {
+    const url = URL.createObjectURL(new Blob([bytes], { type: XLSX_TYPE })); const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    done("ตรวจในโฟลเดอร์ดาวน์โหลด");
+  } catch (e) { msgEl.textContent = "บันทึกไฟล์ไม่สำเร็จ ลองกดอีกครั้ง"; }
+}
+
+/* ---- install & offline status ---- */
+const APP_VERSION = "1.1";
+let offlineReady = false;
+const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+const appleTouch = /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+function renderStatus() {
+  const where = location.protocol === "file:" ? "เปิดจากไฟล์ในเครื่อง (ไม่มีโหมดออฟไลน์)" :
+    offlineReady ? "พร้อมใช้งานแบบออฟไลน์" : "กำลังเตรียมโหมดออฟไลน์ ต่ออินเทอร์เน็ตไว้ก่อน";
+  $("appStatus").textContent = `เวอร์ชัน ${APP_VERSION} · ${where}`;
+  const note = $("installNote");
+  note.hidden = standalone || !appleTouch || location.protocol === "file:";
+  note.textContent = "ตอนนี้เปิดอยู่ใน Safari ข้อมูลใน Safari กับในแอปบนหน้าจอโฮมเก็บแยกกัน ให้กดปุ่มแชร์ › เพิ่มไปยังหน้าจอโฮม แล้วเก็บข้อมูลจากไอคอนบนหน้าจอโฮมเท่านั้น";
+}
+if ("serviceWorker" in navigator && window.isSecureContext && location.protocol !== "file:") {
+  navigator.serviceWorker.register("./sw.js")
+    .then(() => navigator.serviceWorker.ready)
+    .then(() => { offlineReady = true; renderStatus(); })
+    .catch(() => renderStatus());
+}
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+
+/* ---- wiring ---- */
+$("gTH").addEventListener("click", () => setGroup("TH"));
+$("gJP").addEventListener("click", () => setGroup("JP"));
+$("pid").addEventListener("input", () => { $("pid").value = $("pid").value.toUpperCase(); validate(); });
+$("pickOrder").addEventListener("click", () => {
+  const c = orderCounts(group); const min = Math.min(...Object.values(c));
+  const pool = Object.keys(c).filter(k => c[k] === min).map(Number);
+  order = pool[Math.floor(Math.random() * pool.length)]; renderOrders(); validate();
+});
+$("start").addEventListener("click", () => {
+  const id = $("pid").value.trim().toUpperCase();
+  session = { pid: id, group, lang: group === "TH" ? "th" : "ja", order, seq: ORDERS[order], round: 0, t0: 0 };
+  enterStage(); rest(startRound);
+});
+for (const k of ["H", "S", "L"]) $("r" + k).addEventListener("input", paint);
+document.querySelectorAll(".step").forEach(b => b.addEventListener("click", () => {
+  const r = $("r" + b.dataset.k); const max = +r.max, min = +r.min;
+  let v = +r.value + (+b.dataset.d);
+  if (b.dataset.k === "H") v = (v + 360) % 360; else v = Math.min(max, Math.max(min, v));
+  r.value = v; paint();
+}));
+$("ok").addEventListener("click", () => { $("cChip").style.background = current().hex; $("confirmBox").hidden = false; $("cYes").focus(); });
+$("cBack").addEventListener("click", () => { $("confirmBox").hidden = true; });
+$("cYes").addEventListener("click", confirmColor);
+$("exit").addEventListener("click", () => {
+  const n = state.records.filter(r => r.pid === session.pid).length;
+  $("aSub").textContent = n ? `${session.pid} ยืนยันสีไปแล้ว ${n} สี ข้อมูลนี้ยังอยู่ในตาราง ลบได้จากหน้าผู้วิจัย` : `${session.pid} ยังไม่ได้ยืนยันสี`;
+  $("abortBox").hidden = false;
+});
+$("aNo").addEventListener("click", () => { $("abortBox").hidden = true; });
+$("aYes").addEventListener("click", leaveStage);
+$("saveOne").addEventListener("click", () => {
+  if (!session) return; const recs = state.records.filter(r => r.pid === session.pid);
+  saveRecords(recs, `${session.pid}_${fileStamp(new Date())}.xlsx`, $("saveOneMsg"));
+});
+$("backHome").addEventListener("click", leaveStage);
+$("exportAll").addEventListener("click", () => saveRecords(state.records.slice(), `matcha_colors_${fileStamp(new Date())}.xlsx`, $("exportMsg")));
+for (const id of ["sGray", "sH", "sS", "sL", "sHex"]) $(id).addEventListener("change", readSettings);
+$("clearTxt").addEventListener("input", () => { $("clearBtn").disabled = $("clearTxt").value.trim() !== "ลบทั้งหมด"; });
+$("clearBtn").addEventListener("click", () => { state.records = []; persist(); $("clearTxt").value = ""; $("clearBtn").disabled = true; setGroup(group); refreshConsole(); });
+window.addEventListener("beforeunload", e => { if (state.records.some(r => !r.xl)) { e.preventDefault(); e.returnValue = ""; } });
+
+load(); $("storeWarn").hidden = storeOk; renderSettings(); setGroup("TH"); renderData(); renderStatus();
+</script>
+</body>
+</html>
